@@ -33,7 +33,7 @@ jobs:
           name: backend-artifact-${{ github.sha }}
           path: backend/build/artifact.zip
   lint:
-    needs: [build]
+    needs: [be-build]
     name: Lint
     runs-on: ubuntu-latest
     steps:
