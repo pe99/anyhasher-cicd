@@ -54,7 +54,7 @@ jobs:
       - name: Lint the code
         run: cd backend && npm run lint
   test:
-    needs: [build]
+    needs: [be-build]
     name: Running tests
     runs-on: ubuntu-latest
     steps:
