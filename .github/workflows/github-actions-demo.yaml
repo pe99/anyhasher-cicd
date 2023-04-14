@@ -31,7 +31,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: backend-artifact-${{ github.sha }}
-          path: backend/build/artifact.zip
+          path: backend/build/
   lint:
     needs: [be-build]
     name: Lint
@@ -74,6 +74,7 @@ jobs:
 
       - name: Run tests
         run: cd backend && npm run test
+
   security-audit:
     needs: [be-build]
     name: Security Audit
@@ -84,3 +85,33 @@ jobs:
 
       - name: Check for security issues
         run: cd backend && npm audit --audit-level=critical
+
+  static-analysis:
+    needs: [be-build]
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Initialize code
+        uses: github/codeql-action/init@v1
+        with:
+          languages: javascript
+
+      - name: Setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+
+      - name: Install Deps
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cd backend && npm i
+
+      - name: Build
+        run: cd backend && npm run build
+
+      - name: Perform Analysis
+        uses: github/codeql-action/analyze@v1
