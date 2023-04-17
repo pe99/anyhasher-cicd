@@ -134,7 +134,7 @@ jobs:
       - name: Get Artificat
         uses: actions/download-artifact@v2
         with:
-          name: backend-artifact
+          name: backend-artifact-${{ github.sha }}
           path: backend/build
 
       - name: Prepare proc file
