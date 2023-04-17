@@ -141,7 +141,7 @@ jobs:
         run: cd backend/build && zip -r artifact.zip ./ -x '*.git*'
 
       - name: Deploy to EB
-        uses: einareg ilsson/beanstalk-deploy@v20
+        uses: einaregilsson/beanstalk-deploy@v20
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.SECRET_ACCESS_KEY }}
