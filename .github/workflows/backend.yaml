@@ -1,0 +1,163 @@
+name: Backend
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yaml"
+    branches:
+      - main
+
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yaml"
+    branches:
+      - main
+jobs:
+  be-build:
+    name: 🛠️ Build Backend Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache Node Modules
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
+      - name: Install Deps
+        run: cd backend && npm i
+
+      - name: Build
+        run: cd backend && npm run build
+
+      - name: Store Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-artifact-${{ github.sha }}
+          path: backend/build/
+  lint:
+    needs: [be-build]
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache Node Modules
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Deps
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cd backend && npm i
+
+      - name: Lint the code
+        run: cd backend && npm run lint
+  test:
+    needs: [be-build]
+    name: Running tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache Node Modules
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Deps
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cd backend && npm i
+
+      - name: Run tests
+        run: cd backend && npm run test
+
+  security-audit:
+    needs: [be-build]
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check for security issues
+        run: cd backend && npm audit --audit-level=critical
+
+  # static-analysis:
+  #   needs: [be-build]
+  #   name: Static Analysis
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     security-events: write
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+
+  #     - name: Initialize code
+  #       uses: github/codeql-action/init@v1
+  #       with:
+  #         languages: javascript
+
+  #     - name: Setup node
+  #       uses: actions/setup-node@v1
+  #       with:
+  #         node-version: 16.x
+
+  #     - name: Install Deps
+  #       if: steps.cache.outputs.cache-hit != 'true'
+  #       run: cd backend && npm i
+
+  #     - name: Build
+  #       run: cd backend && npm run build
+
+  #     - name: Perform Analysis
+  #       uses: github/codeql-action/analyze@v1
+  deploy_to_eb:
+    needs: [security-audit, test, lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Artificat
+        uses: actions/download-artifact@v2
+        with:
+          name: backend-artifact
+          path: backend/build
+
+      - name: Prepare proc file
+        run: cd backend/build && zip -r artifact.zip ./ -x '*.git*'
+
+      - name: Deploy to EB
+        uses: einareg ilsson/beanstalk-deploy@v20
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.SECRET_ACCESS_KEY }}
+          application_name: AnyHasher
+          environment_name: AnyHasher-env
+          version_label: v-${{github.run_number}}
+          region: eu-west-2
+          deployment_package: backend/build/artifact.zip
+
+  # verify_production:
+  #   needs: [deploy_to_eb]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v1
+
+  #     - name: Run Smoke Test
+  #       run: |
+  #         export BACKEND_URL=
